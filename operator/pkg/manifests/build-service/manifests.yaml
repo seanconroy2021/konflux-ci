@@ -5,6 +5,9 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: build-service
     control-plane: controller-manager
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
   name: build-service
 ---
 apiVersion: v1
@@ -134,6 +137,7 @@ rules:
   resources:
   - configmaps
   - secrets
+  - serviceaccounts
   verbs:
   - create
   - delete
@@ -145,13 +149,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
   - namespaces
   - services
   verbs:
@@ -160,15 +157,12 @@ rules:
   - watch
 - apiGroups:
   - ""
+  - events.k8s.io
   resources:
-  - serviceaccounts
+  - events
   verbs:
   - create
-  - get
-  - list
   - patch
-  - update
-  - watch
 - apiGroups:
   - apiextensions.k8s.io
   resources:
@@ -179,7 +173,6 @@ rules:
   - appstudio.redhat.com
   resources:
   - components
-  - components/status
   verbs:
   - get
   - list
@@ -189,12 +182,25 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
+  - components/status
   - imagerepositories
   - imagerepositories/status
+  - nudgeconfigs
   - releaseplanadmissions
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - konflux-ci.dev
+  resources:
+  - components
+  - components/status
+  verbs:
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - pipelinesascode.tekton.dev
@@ -210,9 +216,13 @@ rules:
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io
+  resourceNames:
+  - appstudio-pipelines-runner
+  - konflux-build-pipelines-runner
   resources:
   - clusterroles
   verbs:
+  - bind
   - get
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -413,7 +423,7 @@ spec:
         - -webhook-config-path=/mnt/webhook-config.json
         command:
         - /manager
-        image: quay.io/konflux-ci/build-service:ea2cad62004f1c497ac7b5b784bd46bfc0409cc1
+        image: quay.io/konflux-ci/build-service:cac5f9da420002ae4cfc3e63ab899389101b3745
         livenessProbe:
           httpGet:
             path: /healthz
